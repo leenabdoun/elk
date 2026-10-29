@@ -195,6 +195,8 @@ def html_report(ctx: dict) -> str:
         parts.append(f"<p><b>Model A:</b> {e(cmp_['a_desc'])}<br><b>Model B:</b> {e(cmp_['b_desc'])}</p>")
         if cmp_.get("justification"):
             parts.append(f"<p><b>Analyst justification for Model B:</b> {e(cmp_['justification'])}</p>")
+        for line in cmp_.get("changes", []):
+            parts.append(f"<div class='item'>{e(line.replace('**', ''))}</div>")
         for w in cmp_["result"]["warnings"]:
             parts.append(f"<div class='item warning'>{e(w)}</div>")
         parts.append(_table(cmp_["result"]["metrics"].set_index("metric")))

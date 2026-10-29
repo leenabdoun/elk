@@ -6,7 +6,7 @@ import pandas as pd
 import streamlit as st
 
 from core.insights import fmt, fmt_p, p_eq, suggest_remedies
-from core.models import COV_LABELS, ModelSpec, compare, fit_ols, newey_west_lags, out_of_sample
+from core.models import COV_LABELS, ModelSpec, compare, fit_ols, newey_west_lags, out_of_sample, summarize_change
 from ui.analysis import get_diag, get_influence, get_vif
 from ui.common import intercept_label, log, nav_buttons, need_model, page_header, ss
 
@@ -121,7 +121,11 @@ def render():
                 + (f" · {len(B.spec.exclude_rows)} rows excluded" if B.spec.exclude_rows else ""))
     for w in res["warnings"]:
         st.warning(w, icon=":material/warning:")
-    if res.get("nested_note"):
+    chg = summarize_change(A, B, alpha)
+    with st.container(border=True):
+        st.markdown("**What changed from A to B**")
+        st.markdown("\n".join(f"- {line}" for line in chg["lines"]))
+    if res.get("nested_note") and not chg["inference_only"]:
         st.info(res["nested_note"], icon=":material/info:")
 
     ct = res["coef_table"].copy()
@@ -133,9 +137,7 @@ def render():
     st.dataframe(ct, width="stretch", column_config={
         **{c: nf(format="%.4f") for c in ["coef A", "coef B", "coef change", "SE A", "SE B", "SE change", "p A", "p B"]},
         "sig A": st.column_config.TextColumn(f"A sig. {alpha:.0%}"), "sig B": st.column_config.TextColumn(f"B sig. {alpha:.0%}")})
-    if A.spec.xs == B.spec.xs and not B.spec.exclude_rows:
-        st.caption("Same variables and observations: coefficients are identical; only standard errors and p-values changed.")
-    elif set(B.spec.xs) != set(A.spec.xs):
+    if set(B.spec.xs) != set(A.spec.xs):
         st.caption("Removing or adding variables changes the other coefficients. A change is not automatically an "
                    "improvement — removing a relevant variable can bias the remaining estimates (omitted-variable bias).")
 
@@ -151,6 +153,10 @@ def render():
             with st.container(border=True):
                 st.markdown(f"**{t['name']}**  \nstatistic {fmt(t['stat'])} · df {t['df']} · **{p_eq(t['p_value'])}**")
                 st.caption(f"H₀: {t['null']} {t['reading']} {t['caveat']}")
+        if chg["inference_only"]:
+            st.info("Residual diagnostics are identical for A and B: a standard-error adjustment doesn't change the "
+                    "residuals. It changes how far the p-values can be trusted given the problems the diagnostics found. "
+                    "To see diagnostics change, alter the variables or exclude flagged rows.", icon=":material/info:")
         dA, dB = get_diag(A), get_diag(B)
         rows = []
         for k in ["bp", "bg", "arch", "jb", "reset"]:
@@ -160,11 +166,10 @@ def render():
         if len(vif) or len(vb):
             rows.append({"test": "Max VIF (value)", "p (A)": vif["VIF"].max() if len(vif) else np.nan,
                          "p (B)": vb["VIF"].max() if len(vb) else np.nan})
-        st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch",
-                     column_config={"p (A)": nf(format="%.4f"), "p (B)": nf(format="%.4f")})
-        if B.spec.cov_type != "nonrobust":
-            st.caption("Residual diagnostics describe the residuals, so a robust-error adjustment does not change them — "
-                       "it changes how much the p-values can be trusted.")
+        if not chg["inference_only"]:
+            st.markdown("**Diagnostics, A vs B** (p-values; VIF is a value)")
+            st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch",
+                         column_config={"p (A)": nf(format="%.4f"), "p (B)": nf(format="%.4f")})
 
     st.markdown("##### Out-of-sample check")
     with st.container(border=True):

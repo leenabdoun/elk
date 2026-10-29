@@ -8,7 +8,7 @@ import pandas as pd
 import streamlit as st
 
 from core.insights import build_narrative, fmt, in_unit
-from core.models import COV_LABELS, compare, scenario
+from core.models import COV_LABELS, compare, scenario, summarize_change
 from core.report import excel_report, html_report
 from ui.analysis import diag_rows, get_diag, get_influence, get_vif
 from ui.common import intercept_label, log, nav_buttons, need_model, page_header, ss
@@ -49,6 +49,7 @@ def report_context(fit, secs):
                           + (f" ({B.spec.hac_lags} lags)" if B.spec.cov_type == "HAC" else "")
                           + f" · n={B.stats['n']}" + (f" · {len(B.spec.exclude_rows)} rows excluded" if B.spec.exclude_rows else ""),
                 "justification": (ss.b_cfg or {}).get("justification", ""), "result": compare(A, B, sp["alpha"]),
+                "changes": summarize_change(A, B, sp["alpha"])["lines"],
                 "oos": ss.oos}
     return {"title": d["name"], "provenance": prov, "spec": spec, "suit": ss.suit, "fit": fit, "diag": diag_rows(fit),
             "vif": get_vif(fit), "flagged": flagged, "comparison": cmp_, "narrative": secs, "notes": ss.notes,

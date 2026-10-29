@@ -232,3 +232,47 @@ def scenario(fit: FitResult, values: dict, alpha: float) -> dict:
             "pi": (float(sf["obs_ci_lower"].iloc[0]), float(sf["obs_ci_upper"].iloc[0])),
             "outside": outside, "leverage": h0, "max_leverage": hmax,
             "hidden_extrapolation": (not outside) and np.isfinite(h0) and h0 > hmax}
+
+
+def summarize_change(a: FitResult, b: FitResult, alpha: float) -> dict:
+    """Plain-language list of what differs between Model A and Model B."""
+    inference_only = set(a.spec.xs) == set(b.spec.xs) and a.frame.index.equals(b.frame.index)
+    common = [t for t in b.coef.index if t in a.coef.index]
+    lines = []
+    if inference_only:
+        lines.append("**Coefficients: unchanged.** Same variables and observations, so OLS gives identical estimates, "
+                     "R², AIC and residual diagnostics. This is expected for a standard-error adjustment.")
+        se = (b.coef.loc[common, "std_error"] / a.coef.loc[common, "std_error"] - 1) * 100
+        top = se.abs().sort_values(ascending=False).head(3)
+        lines.append("**Standard errors: changed.** Largest moves: " + ", ".join(
+            f"{'intercept' if t == 'const' else t} {se[t]:+.0f}%" for t in top.index) + ".")
+    else:
+        bc = b.coef.loc[common, "estimate"]
+        ac = a.coef.loc[common, "estimate"]
+        pct = ((bc - ac) / ac.abs().replace(0, np.nan) * 100).drop(index="const", errors="ignore")
+        top = pct.abs().sort_values(ascending=False).head(3)
+        if len(top):
+            lines.append("**Coefficients: changed.** Largest moves: " + ", ".join(
+                f"{t} {ac[t]:.4g} → {bc[t]:.4g} ({pct[t]:+.0f}%)" for t in top.index) + ".")
+        flipped = [t for t in pct.index if np.sign(ac[t]) != np.sign(bc[t])]
+        if flipped:
+            lines.append(f"**Sign flipped:** {', '.join(flipped)}.")
+        dropped = sorted(set(a.spec.xs) - set(b.spec.xs))
+        added = sorted(set(b.spec.xs) - set(a.spec.xs))
+        if dropped or added:
+            lines.append("**Variables:** " + "; ".join(filter(None, [f"removed {', '.join(dropped)}" if dropped else "",
+                                                                       f"added {', '.join(added)}" if added else ""])) + ".")
+        if b.spec.exclude_rows:
+            lines.append(f"**Observations:** {len(b.spec.exclude_rows)} flagged rows excluded (n {a.stats['n']} → {b.stats['n']}).")
+        lines.append(f"**Fit:** adjusted R² {a.stats['adj_r2']:.3f} → {b.stats['adj_r2']:.3f}.")
+    gained = [t for t in common if a.coef.loc[t, "p_value"] >= alpha > b.coef.loc[t, "p_value"]]
+    lost = [t for t in common if a.coef.loc[t, "p_value"] < alpha <= b.coef.loc[t, "p_value"]]
+    nm = lambda ts: ", ".join("intercept" if t == "const" else t for t in ts)  # noqa: E731
+    if gained or lost:
+        lines.append(f"**Significance at {alpha:.0%} changed:** "
+                     + "; ".join(filter(None, [f"now significant: {nm(gained)}" if gained else "",
+                                               f"no longer significant: {nm(lost)}" if lost else ""])) + ".")
+    else:
+        lines.append(f"**Significance at {alpha:.0%}: no change** — the same variables are significant in both models"
+                     + (" (the conclusion is robust to this adjustment)." if inference_only else "."))
+    return {"inference_only": inference_only, "lines": lines}
