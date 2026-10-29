@@ -1,0 +1,70 @@
+{
+  "kf_ff3_monthly": {
+    "retrieved": "2026-10-29 12:21 UTC",
+    "file": "F-F_Research_Data_Factors_CSV.zip",
+    "rows": 1203,
+    "last": "2026-09-30"
+  },
+  "kf_ff3_weekly": {
+    "retrieved": "2026-10-29 12:21 UTC",
+    "file": "F-F_Research_Data_Factors_weekly_CSV.zip",
+    "rows": 5230,
+    "last": "2026-09-25"
+  },
+  "kf_ff3_daily": {
+    "retrieved": "2026-10-29 12:21 UTC",
+    "file": "F-F_Research_Data_Factors_daily_CSV.zip",
+    "rows": 9254,
+    "last": "2026-09-30"
+  },
+  "kf_ff5_monthly": {
+    "retrieved": "2026-10-29 12:21 UTC",
+    "file": "F-F_Research_Data_5_Factors_2x3_CSV.zip",
+    "rows": 759,
+    "last": "2026-09-30"
+  },
+  "kf_ff5_daily": {
+    "retrieved": "2026-10-29 12:21 UTC",
+    "file": "F-F_Research_Data_5_Factors_2x3_daily_CSV.zip",
+    "rows": 9254,
+    "last": "2026-09-30"
+  },
+  "kf_mom_monthly": {
+    "retrieved": "2026-10-29 12:21 UTC",
+    "file": "F-F_Momentum_Factor_CSV.zip",
+    "rows": 1197,
+    "last": "2026-09-30"
+  },
+  "kf_mom_daily": {
+    "retrieved": "2026-10-29 12:21 UTC",
+    "file": "F-F_Momentum_Factor_daily_CSV.zip",
+    "rows": 9254,
+    "last": "2026-09-30"
+  },
+  "etf_prices_daily": {
+    "retrieved": "2026-10-29 12:21 UTC",
+    "tickers": [
+      "AGG",
+      "EEM",
+      "EFA",
+      "GLD",
+      "HYG",
+      "IWD",
+      "IWF",
+      "IWM",
+      "LQD",
+      "MTUM",
+      "QQQ",
+      "QUAL",
+      "SIZE",
+      "SPY",
+      "TLT",
+      "USMV",
+      "VLUE",
+      "VNQ",
+      "XLK"
+    ],
+    "rows": 8495,
+    "last": "2026-10-28"
+  }
+}
