@@ -1,0 +1,55 @@
+[server]
+maxUploadSize = 50
+runOnSave = false
+
+[browser]
+gatherUsageStats = false
+
+[client]
+toolbarMode = "minimal"
+
+[theme]
+font = "'Inter':https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap, sans-serif"
+codeFont = "'IBM Plex Mono':https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&display=swap, monospace"
+headingFontWeights = [650, 600, 600, 600, 600, 600]
+baseRadius = "0.5rem"
+buttonRadius = "0.45rem"
+showWidgetBorder = true
+showSidebarBorder = true
+chartCategoricalColors = ["#4A5A6A", "#9AA7B4", "#B07D3E", "#6E8B74", "#8C6A8E", "#C2C8CE"]
+
+[theme.light]
+primaryColor = "#3E4A56"
+backgroundColor = "#FAFAFA"
+secondaryBackgroundColor = "#F0F1F3"
+textColor = "#22272C"
+borderColor = "#DADDE1"
+linkColor = "#3E5F80"
+redColor = "#B5473A"
+orangeColor = "#B07D3E"
+greenColor = "#4F7A5B"
+blueColor = "#4A6684"
+grayColor = "#8A939B"
+dataframeHeaderBackgroundColor = "#ECEEF0"
+
+[theme.light.sidebar]
+backgroundColor = "#F2F3F5"
+secondaryBackgroundColor = "#E7E9EC"
+
+[theme.dark]
+primaryColor = "#C3CBD3"
+backgroundColor = "#17191C"
+secondaryBackgroundColor = "#22262A"
+textColor = "#E4E7EA"
+borderColor = "#343A40"
+linkColor = "#9DB6CF"
+redColor = "#D9786B"
+orangeColor = "#D2A15F"
+greenColor = "#7FAA8A"
+blueColor = "#8FA9C4"
+grayColor = "#6F7880"
+dataframeHeaderBackgroundColor = "#262A2F"
+
+[theme.dark.sidebar]
+backgroundColor = "#1D2024"
+secondaryBackgroundColor = "#272B30"

@@ -1,0 +1,31 @@
+name: Refresh public data snapshot
+
+on:
+  schedule:
+    - cron: "17 6 * * 1-5"   # weekdays 06:17 UTC
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ["core/market_data.py", "scripts/refresh_snapshot.py", ".github/workflows/refresh-data.yml"]
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - run: python scripts/refresh_snapshot.py
+      - name: Commit snapshot if changed
+        run: |
+          git config user.name "elk-data-bot"
+          git config user.email "elk-data-bot@users.noreply.github.com"
+          git add data/snapshot
+          if git diff --cached --quiet; then echo "no changes"; else git commit -m "Refresh public data snapshot [skip ci]" && git push; fi
