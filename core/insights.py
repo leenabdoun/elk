@@ -3,9 +3,10 @@ from __future__ import annotations
 
 import numpy as np
 
-UNITS = ["unitless / other", "decimal return (0.01 = 1%)", "percent (1 = 1%)", "basis points", "USD", "USD millions",
+UNITS = ["unitless / other", "decimal return (0.01 = 1%)", "percent return (1 = 1%)", "percent (1 = 1%)", "basis points", "USD", "USD millions",
          "multiple (x)", "ratio (0–1)", "count", "0/1 indicator", "log value", "price / index level"]
-RETURN_UNITS = ("decimal return (0.01 = 1%)", "percent (1 = 1%)")
+RETURN_UNITS = ("decimal return (0.01 = 1%)", "percent return (1 = 1%)")
+PERCENT_UNITS = ("percent (1 = 1%)", "percent return (1 = 1%)")
 
 
 def fmt(x, digits=4):
@@ -41,7 +42,7 @@ def in_unit(v, unit):
     """Human-readable value in a column's unit."""
     if unit == "decimal return (0.01 = 1%)":
         return f"{v * 100:.2f}%"
-    if unit == "percent (1 = 1%)":
+    if unit in PERCENT_UNITS:
         return f"{v:.2f}%"
     if unit == "basis points":
         return f"{v:,.1f} bps"
@@ -58,6 +59,7 @@ def step_phrase(x, unit):
     return {
         "decimal return (0.01 = 1%)": f"a 1 percentage-point higher {x}",
         "percent (1 = 1%)": f"a 1 percentage-point higher {x}",
+        "percent return (1 = 1%)": f"a 1 percentage-point higher {x}",
         "basis points": f"a 1 bp higher {x}",
         "multiple (x)": f"a one-turn (1.0x) higher {x}",
         "0/1 indicator": f"{x} = 1 (versus 0)",

@@ -493,7 +493,8 @@ def _excess_ui(df, prof, dates):
                 ss.data["provenance"].append(("Risk-free rate", how))
             new = df.copy()
             for c in todo:
-                scale = 100 if ss.units.get(c) == "percent (1 = 1%)" and rf_unit != "percent (1 = 1%)" else 1
+                pct = ("percent (1 = 1%)", "percent return (1 = 1%)")
+                scale = 100 if ss.units.get(c) in pct and rf_unit not in pct else 1
                 new[f"{c}_excess"] = pd.to_numeric(new[c], errors="coerce") - rf * scale
                 ss.units[f"{c}_excess"] = ss.units.get(c)
                 ss.descriptions[f"{c}_excess"] = f"{c} above the risk-free rate"

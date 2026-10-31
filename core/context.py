@@ -24,11 +24,11 @@ def guess_unit(name: str, s: pd.Series) -> str:
         return "basis points"
     if n.startswith("log") or "log" in tokens or n.startswith("ln_"):
         return "log value"
-    if n in FACTOR_NAMES or tokens & {"return", "returns", "ret", "excess", "alpha", "yield", "ytd", "irr"}:
-        return "decimal return (0.01 = 1%)" if med < 0.2 and mx < 3 else "percent (1 = 1%)"
+    if n in FACTOR_NAMES or tokens & {"return", "returns", "ret", "excess", "alpha", "ytd", "irr"}:
+        return "decimal return (0.01 = 1%)" if med < 0.2 and mx < 3 else "percent return (1 = 1%)"
     if n.endswith("_x") or tokens & {"leverage", "coverage", "multiple", "multiples", "turns", "dscr", "icr"}:
         return "multiple (x)"
-    if tokens & {"pct", "percent", "share", "rate", "margin", "ltv", "occupancy", "growth", "utilisation", "utilization"}:
+    if tokens & {"pct", "percent", "share", "rate", "yield", "margin", "ltv", "occupancy", "growth", "utilisation", "utilization"}:
         return "ratio (0–1)" if mx <= 1.5 else "percent (1 = 1%)"
     if tokens & {"musd", "usdm", "mm", "mn", "millions", "usd_m"} or re.search(r"(usd|\$)_?m\b|_m$|musd", n):
         return "USD millions"

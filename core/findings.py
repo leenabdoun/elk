@@ -57,6 +57,7 @@ def _step(unit: str):
     return {
         "decimal return (0.01 = 1%)": (0.01, "1 percentage point"),
         "percent (1 = 1%)": (1.0, "1 percentage point"),
+        "percent return (1 = 1%)": (1.0, "1 percentage point"),
         "ratio (0–1)": (0.01, "1 percentage point"),
         "basis points": (100.0, "100 bps"),
         "multiple (x)": (1.0, "one turn (1.0x)"),
@@ -71,7 +72,7 @@ def amount(v: float, unit: str) -> str:
     a = abs(v)
     if unit == "decimal return (0.01 = 1%)":
         return f"{a * 100:.2f} percentage points"
-    if unit == "percent (1 = 1%)":
+    if unit in ("percent (1 = 1%)", "percent return (1 = 1%)"):
         return f"{a:.2f} percentage points"
     if unit == "ratio (0–1)":
         return f"{a * 100:.2f} percentage points"
