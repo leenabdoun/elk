@@ -11,10 +11,15 @@ from ui.analysis import get_diag, get_influence, get_vif
 from ui.common import intercept_label, log, nav_buttons, need_model, page_header, ss
 
 
+DRAFT = "[Draft — edit to your own reasoning] "
+
+
 def _preset(rid, fit, remedy):
     ss.b_xs = list(fit.spec.xs)
     ss.b_excl = False
     ss.b_cov = "nonrobust"
+    if not ss.get("b_just") or ss.b_just.startswith(DRAFT):
+        ss.b_just = ""
     if rid == "HC3":
         ss.b_cov = "HC3"
     elif rid == "HAC":
@@ -25,9 +30,17 @@ def _preset(rid, fit, remedy):
         hi = [c for c in cand if c in fit.coef.index][:2]
         if hi:
             drop = max(hi, key=lambda c: fit.coef.loc[c, "p_value"])
+            keep = [c for c in hi if c != drop]
             ss.b_xs = [x for x in fit.spec.xs if x != drop]
+            if not ss.b_just:
+                ss.b_just = (DRAFT + f"{drop} is highly collinear with {', '.join(keep) or 'other regressors'} "
+                             f"(high VIF), so both measure largely the same thing; {drop} is removed and "
+                             f"{', '.join(keep) or 'the remaining variables'} kept as the primary measure.")
     elif rid == "EXCL":
         ss.b_excl = True
+        if not ss.b_just:
+            ss.b_just = (DRAFT + "Sensitivity check: re-estimate without the observations flagged as outliers or "
+                         "influential to see whether conclusions depend on them. The full-sample model remains the reference.")
 
 
 def render():
@@ -76,12 +89,22 @@ def render():
                            disabled=len(flagged) == 0,
                            help="Estimates Model B without the flagged rows. The data and Model A are unchanged.")
         changes_spec = set(xs) != set(A.spec.xs) or excl
-        just = st.text_area("Justification" + (" (required for changes to variables or observations)" if changes_spec else ""),
-                            key="b_just", height=80,
+        ss.setdefault("b_just", "")
+        just = st.text_area("Justification" + (" — required, because Model B changes the variables or observations"
+                                               if changes_spec else " (optional)"),
+                            key="b_just", height=90,
                             placeholder="e.g. Interest coverage is mechanically ~1/(leverage × cost of debt), so it duplicates "
                                         "the leverage information; leverage is kept as the primary credit metric.")
-        ready = bool(xs) and (not changes_spec or just.strip())
-        if st.button("Estimate Model B", type="primary", icon=":material/play_arrow:", disabled=not ready):
+        if just.startswith(DRAFT):
+            st.caption(":material/edit: A draft justification was filled in from the diagnostics. Edit it to reflect your "
+                       "own reasoning — it is recorded in the report and audit trail.")
+        clicked = st.button("Estimate Model B", type="primary", icon=":material/play_arrow:", disabled=not xs)
+        if not xs:
+            st.caption("Select at least one explanatory variable.")
+        if clicked and changes_spec and not just.strip():
+            st.error("Please write a short justification above. Changing variables or excluding observations changes the "
+                     "coefficients, so ELK records why.", icon=":material/edit_note:")
+        elif clicked:
             frame = ss.suit.frame
             if set(xs) - set(frame.columns):
                 # variables outside Model A's suitability frame → rebuild a complete-case frame on the union

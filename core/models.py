@@ -169,7 +169,7 @@ def compare(a: FitResult, b: FitResult, alpha: float) -> dict:
                             else f"Do not reject at {alpha:.0%}: no evidence the extra variables jointly add explanatory power."),
                 "caveat": "A robust covariance is in use, so the classical nested F-test is replaced by a Wald test that "
                           "uses the larger model's robust covariance."})
-    elif nest is None:
+    elif nest is None and set(a.spec.xs) != set(b.spec.xs):
         out["nested_note"] = ("The models are not nested (neither model's variables are a subset of the other's), "
                               "so no joint F-test is shown. Compare using AIC/BIC and out-of-sample error.")
     return out
