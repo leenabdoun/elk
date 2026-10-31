@@ -158,7 +158,7 @@ def adf_test(series: pd.Series, regression: str = "c", autolag: str | None = "AI
     s = pd.Series(series).dropna()
     if len(s) < 20:
         return {"stat": np.nan, "p": np.nan, "lags": None, "nobs": len(s), "crit": {}, "note": "needs at least 20 observations"}
-    stat, p, lags, nobs, crit, *_ = adfuller(s, regression=regression, autolag=autolag, maxlag=maxlag)
+    stat, p, lags, nobs, crit, *_ = adfuller(s, regression=regression, autolag=autolag, maxlag=maxlag, result_object=False)
     return {"stat": float(stat), "p": float(p), "lags": int(lags), "nobs": int(nobs), "crit": crit, "note": ""}
 
 

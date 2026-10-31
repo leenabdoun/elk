@@ -221,22 +221,23 @@ def _cov_name(st):
 def suggest_remedies(diag: dict, vif, flagged, is_ts: bool) -> list[dict]:
     out = []
     if diag.get("bp", {}).get("level") == "warn":
-        out.append({"id": "HC3", "title": "Heteroskedasticity-robust standard errors (HC3)",
-                    "why": f"Breusch–Pagan {p_eq(diag['bp']['p'])}: residual variance is not constant.",
-                    "effect": "Changes standard errors, t-stats and p-values. Coefficients are unchanged."})
+        out.append({"id": "HC3", "title": "Re-check confidence allowing for uneven errors (HC3)",
+                    "why": "Diagnostics found the model's errors are larger for some observations than others, which can "
+                           "overstate confidence.",
+                    "effect": "only the confidence levels (standard errors, p-values). Effects stay the same."})
     if is_ts and (diag.get("bg", {}).get("level") == "warn" or diag.get("arch", {}).get("level") == "warn"
                   or diag.get("dw", {}).get("level") == "warn"):
-        out.append({"id": "HAC", "title": "HAC / Newey–West standard errors",
-                    "why": "Residuals show serial correlation and/or volatility clustering.",
-                    "effect": "Changes standard errors and p-values to allow for autocorrelation. Coefficients are unchanged."})
+        out.append({"id": "HAC", "title": "Re-check confidence allowing for patterns over time (HAC / Newey–West)",
+                    "why": "Diagnostics found errors that carry over between periods or volatility that clusters.",
+                    "effect": "only the confidence levels. Effects stay the same."})
     if vif is not None and len(vif) and (vif["VIF"] > 10).any():
         hi = vif.sort_values("VIF", ascending=False)["variable"].tolist()
-        out.append({"id": "DROP", "title": "Revise a redundant explanatory variable",
-                    "why": f"High VIF for {', '.join(vif[vif['VIF'] > 10]['variable'])}.",
-                    "effect": "Changes coefficients. Needs an economic justification; dropping a relevant variable biases others.",
+        out.append({"id": "DROP", "title": "Drop one of two overlapping drivers",
+                    "why": f"{' and '.join(vif[vif['VIF'] > 10]['variable'])} carry largely the same information.",
+                    "effect": "the effects. Needs a reason; dropping a genuinely relevant driver distorts the others.",
                     "candidates": hi})
     if flagged is not None and len(flagged):
-        out.append({"id": "EXCL", "title": "Sensitivity check excluding flagged observations",
-                    "why": f"{len(flagged)} observation(s) flagged by studentised residuals / Cook's distance.",
-                    "effect": "Shows how much results depend on these rows. The original model remains the reference; data are not deleted."})
+        out.append({"id": "EXCL", "title": "Re-run without the unusual observations",
+                    "why": f"{len(flagged)} observation(s) have an outsized influence on the results.",
+                    "effect": "shows whether conclusions depend on them. Nothing is deleted from your data."})
     return out

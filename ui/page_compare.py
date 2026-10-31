@@ -5,10 +5,11 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 
+from core.findings import comparison_takeaway
 from core.insights import fmt, fmt_p, p_eq, suggest_remedies
 from core.models import COV_LABELS, ModelSpec, compare, fit_ols, newey_west_lags, out_of_sample, summarize_change
 from ui.analysis import get_diag, get_influence, get_vif
-from ui.common import intercept_label, log, nav_buttons, need_model, page_header, ss
+from ui.common import finding_card, intercept_label, log, nav_buttons, need_model, page_header, ss
 
 
 DRAFT = "[Draft — edit to your own reasoning] "
@@ -45,9 +46,8 @@ def _preset(rid, fit, remedy):
 
 
 def render():
-    page_header("Compare & Repair", "Build an alternative Model B — a robust inference adjustment, a revised set of "
-                                    "variables, or a sensitivity check — and compare it with the original. Nothing is "
-                                    "applied automatically.")
+    page_header("Compare & Adjust", "Test whether your conclusions hold up: run an alternative version of the model "
+                                    "(Model B) and see what changes. Nothing is applied automatically.")
     if not need_model():
         return
     A = ss.fitA
@@ -58,21 +58,21 @@ def render():
     _, flagged = get_influence(A)
 
     rem = suggest_remedies(d, vif, flagged, sp["is_ts"])
-    st.markdown("##### Suggested options based on the diagnostics")
+    st.markdown("##### Suggested checks, based on what Diagnostics found")
+    st.caption("Each runs an alternative version (Model B) next to your original (Model A). Your data and Model A never change.")
     if not rem:
-        st.caption("No diagnostic flagged a problem. You can still build an alternative specification below.")
+        st.caption("No check raised a flag. You can still try an alternative set of drivers below.")
     cols = st.columns(max(1, min(len(rem), 4)))
     for i, r in enumerate(rem):
         with cols[i % len(cols)].container(border=True, height="stretch"):
             st.markdown(f"**{r['title']}**")
-            st.caption(f"Why: {r['why']}")
-            st.caption(f"Effect: {r['effect']}")
+            st.caption(r["why"])
+            st.caption(f"*What changes:* {r['effect']}")
             st.button("Run as Model B", key=f"rem_{r['id']}", on_click=_preset, args=(r["id"], A, r), width="stretch",
                       icon=":material/play_arrow:")
 
-    st.markdown("##### Model B")
-    st.caption("Use a suggestion above, or set your own combination here (for example HC3 errors *and* a revised variable "
-               "list), then click Estimate.")
+    st.markdown("##### Build your own Model B")
+    st.caption("Or set your own combination — e.g. different drivers, robust errors, or both — then click Estimate.")
     ss.setdefault("b_xs", list(A.spec.xs))
     ss.setdefault("b_cov", "nonrobust")
     ss.setdefault("b_excl", False)
@@ -140,64 +140,64 @@ def render():
 
     if not A.frame.index.equals(B.frame.index) and set(A.spec.xs) - set(ss.suit.frame.columns) == set():
         pass
-    st.markdown("##### A vs B")
+    st.markdown("##### What Model B tells you")
     res = compare(A, B, alpha)
-    cA, cB = st.columns(2)
-    cA.markdown(f"**Model A** · {A.spec.describe()}  \n{COV_LABELS[A.spec.cov_type]} · n = {A.stats['n']}")
-    cB.markdown(f"**Model B** · {B.spec.describe()}  \n{COV_LABELS[B.spec.cov_type]}"
-                + (f" ({B.spec.hac_lags} lags)" if B.spec.cov_type == "HAC" else "") + f" · n = {B.stats['n']}"
-                + (f" · {len(B.spec.exclude_rows)} rows excluded" if B.spec.exclude_rows else ""))
+    chg = summarize_change(A, B, alpha)
+    bl = comparison_takeaway(A, B, alpha, ss.descriptions)
+    bl.points = [line for line in chg["lines"]]
+    finding_card(bl)
     for w in res["warnings"]:
         st.warning(w, icon=":material/warning:")
-    chg = summarize_change(A, B, alpha)
-    with st.container(border=True):
-        st.markdown("**What changed from A to B**")
-        st.markdown("\n".join(f"- {line}" for line in chg["lines"]))
+    st.caption(f"**Model A** (original): {A.spec.describe()} · {COV_LABELS[A.spec.cov_type]} · n = {A.stats['n']}  \n"
+               f"**Model B**: {B.spec.describe()} · {COV_LABELS[B.spec.cov_type]}"
+               + (f" ({B.spec.hac_lags} lags)" if B.spec.cov_type == "HAC" else "") + f" · n = {B.stats['n']}"
+               + (f" · {len(B.spec.exclude_rows)} rows excluded" if B.spec.exclude_rows else ""))
     if res.get("nested_note") and not chg["inference_only"]:
-        st.info(res["nested_note"], icon=":material/info:")
+        st.caption(res["nested_note"])
 
-    ct = res["coef_table"].copy()
-    ct.index = [intercept_label() if i == "const" else i for i in ct.index]
-    for lab in ("A", "B"):
-        ct[f"sig {lab}"] = np.where(ct[f"p {lab}"] < alpha, "✓", np.where(ct[f"p {lab}"].isna(), "", "·"))
-    ct = ct[["coef A", "coef B", "coef change", "SE A", "SE B", "SE change", "p A", "sig A", "p B", "sig B"]]
-    nf = st.column_config.NumberColumn
-    st.dataframe(ct, width="stretch", column_config={
-        **{c: nf(format="%.4f") for c in ["coef A", "coef B", "coef change", "SE A", "SE B", "SE change", "p A", "p B"]},
-        "sig A": st.column_config.TextColumn(f"A sig. {alpha:.0%}"), "sig B": st.column_config.TextColumn(f"B sig. {alpha:.0%}")})
-    if set(B.spec.xs) != set(A.spec.xs):
-        st.caption("Removing or adding variables changes the other coefficients. A change is not automatically an "
-                   "improvement — removing a relevant variable can bias the remaining estimates (omitted-variable bias).")
+    with st.expander("See statistical details — coefficients, fit statistics, tests, diagnostics A vs B", icon=":material/table_view:"):
+        ct = res["coef_table"].copy()
+        ct.index = [intercept_label() if i == "const" else i for i in ct.index]
+        for lab in ("A", "B"):
+            ct[f"sig {lab}"] = np.where(ct[f"p {lab}"] < alpha, "✓", np.where(ct[f"p {lab}"].isna(), "", "·"))
+        ct = ct[["coef A", "coef B", "coef change", "SE A", "SE B", "SE change", "p A", "sig A", "p B", "sig B"]]
+        nf = st.column_config.NumberColumn
+        st.dataframe(ct, width="stretch", column_config={
+            **{c: nf(format="%.4f") for c in ["coef A", "coef B", "coef change", "SE A", "SE B", "SE change", "p A", "p B"]},
+            "sig A": st.column_config.TextColumn(f"A sig. {alpha:.0%}"), "sig B": st.column_config.TextColumn(f"B sig. {alpha:.0%}")})
+        if set(B.spec.xs) != set(A.spec.xs):
+            st.caption("Removing or adding variables changes the other coefficients. A change is not automatically an "
+                       "improvement — removing a relevant variable can bias the remaining estimates (omitted-variable bias).")
 
-    c1, c2 = st.columns([1.3, 1])
-    with c1:
-        m = res["metrics"].copy()
-        for c in ["Model A", "Model B", "difference (B − A)"]:
-            m[c] = [f"{v:,.0f}" if r in ("Observations", "Slope parameters") else
-                    (f"{v:.4f}" if abs(v) < 10 else f"{v:,.2f}") for r, v in zip(m["metric"], m[c])]
-        st.dataframe(m, hide_index=True, width="stretch")
-    with c2:
-        for t in res["tests"]:
-            with st.container(border=True):
-                st.markdown(f"**{t['name']}**  \nstatistic {fmt(t['stat'])} · df {t['df']} · **{p_eq(t['p_value'])}**")
-                st.caption(f"H₀: {t['null']} {t['reading']} {t['caveat']}")
-        if chg["inference_only"]:
-            st.info("Residual diagnostics are identical for A and B: a standard-error adjustment doesn't change the "
-                    "residuals. It changes how far the p-values can be trusted given the problems the diagnostics found. "
-                    "To see diagnostics change, alter the variables or exclude flagged rows.", icon=":material/info:")
-        dA, dB = get_diag(A), get_diag(B)
-        rows = []
-        for k in ["bp", "bg", "arch", "jb", "reset"]:
-            if k in dA and k in dB:
-                rows.append({"test": dA[k]["name"], "p (A)": dA[k]["p"], "p (B)": dB[k]["p"]})
-        vb = get_vif(B)
-        if len(vif) or len(vb):
-            rows.append({"test": "Max VIF (value)", "p (A)": vif["VIF"].max() if len(vif) else np.nan,
-                         "p (B)": vb["VIF"].max() if len(vb) else np.nan})
-        if not chg["inference_only"]:
-            st.markdown("**Diagnostics, A vs B** (p-values; VIF is a value)")
-            st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch",
-                         column_config={"p (A)": nf(format="%.4f"), "p (B)": nf(format="%.4f")})
+        c1, c2 = st.columns([1.3, 1])
+        with c1:
+            m = res["metrics"].copy()
+            for c in ["Model A", "Model B", "difference (B − A)"]:
+                m[c] = [f"{v:,.0f}" if r in ("Observations", "Slope parameters") else
+                        (f"{v:.4f}" if abs(v) < 10 else f"{v:,.2f}") for r, v in zip(m["metric"], m[c])]
+            st.dataframe(m, hide_index=True, width="stretch")
+        with c2:
+            for t in res["tests"]:
+                with st.container(border=True):
+                    st.markdown(f"**{t['name']}**  \nstatistic {fmt(t['stat'])} · df {t['df']} · **{p_eq(t['p_value'])}**")
+                    st.caption(f"H₀: {t['null']} {t['reading']} {t['caveat']}")
+            if chg["inference_only"]:
+                st.info("Residual diagnostics are identical for A and B: a standard-error adjustment doesn't change the "
+                        "residuals. It changes how far the p-values can be trusted given the problems the diagnostics found. "
+                        "To see diagnostics change, alter the variables or exclude flagged rows.", icon=":material/info:")
+            dA, dB = get_diag(A), get_diag(B)
+            rows = []
+            for k in ["bp", "bg", "arch", "jb", "reset"]:
+                if k in dA and k in dB:
+                    rows.append({"test": dA[k]["name"], "p (A)": dA[k]["p"], "p (B)": dB[k]["p"]})
+            vb = get_vif(B)
+            if len(vif) or len(vb):
+                rows.append({"test": "Max VIF (value)", "p (A)": vif["VIF"].max() if len(vif) else np.nan,
+                             "p (B)": vb["VIF"].max() if len(vb) else np.nan})
+            if not chg["inference_only"]:
+                st.markdown("**Diagnostics, A vs B** (p-values; VIF is a value)")
+                st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch",
+                             column_config={"p (A)": nf(format="%.4f"), "p (B)": nf(format="%.4f")})
 
     st.markdown("##### Out-of-sample check")
     with st.container(border=True):

@@ -245,3 +245,12 @@ def test_read_csv_with_percent_text(tmp_path):
     s = assess(d, "Fund", ["Mkt"], "Date")
     assert s.frame["Fund"].tolist() == [1.5, -0.5, 1200.0]
     assert any("% signs" in i.title for i in s.issues)
+
+
+def test_leakage_blocked():
+    df = make_private_credit().dropna()
+    df["spread_copy"] = df["spread_bps"]
+    df["spread_after_fee"] = df["spread_bps"] - 25
+    assert assess(df, "spread_bps", ["leverage_x", "spread_copy"]).blocked
+    assert assess(df, "spread_bps", ["leverage_x", "spread_after_fee"]).blocked
+    assert not assess(df, "spread_bps", ["leverage_x", "log_ebitda"]).blocked

@@ -1,6 +1,7 @@
 """Data Suitability Assessment: descriptive warnings, blocking issues only where maths fails."""
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 
 import numpy as np
@@ -60,6 +61,36 @@ def assess(df: pd.DataFrame, y: str, xs: list[str], date_col: str | None = None,
             out.add("warn", f"Infinite values in '{c}'", f"{inf} infinite value(s) are treated as missing.")
             conv = conv.replace([np.inf, -np.inf], np.nan)
         work[c] = conv
+
+    # leakage: an explanatory variable that is (or is derived from) the outcome
+    yv = work[y]
+    for x in xs:
+        xv = work[x]
+        both = yv.notna() & xv.notna()
+        if both.sum() < 3:
+            continue
+        if np.allclose(yv[both], xv[both]):
+            out.add("block", f"'{x}' is identical to the outcome", f"'{x}' has the same values as '{y}'. Explaining a "
+                    "variable with itself gives a meaningless perfect fit. Remove it from the explanatory variables.")
+            continue
+        r = np.corrcoef(yv[both], xv[both])[0, 1] if yv[both].std() > 0 and xv[both].std() > 0 else 0
+        yl, xl = y.lower(), x.lower()
+        generic = {"pct", "bps", "usd", "musd", "return", "returns", "ret", "excess", "log", "the", "rate", "value"}
+        ty = {t for t in re.split(r"[^a-z0-9]+", yl) if len(t) >= 3 and t not in generic}
+        tx = {t for t in re.split(r"[^a-z0-9]+", xl) if len(t) >= 3 and t not in generic}
+        related = (len(yl) >= 3 and yl in xl) or (len(xl) >= 3 and xl in yl) or bool(ty & tx)
+        if abs(r) >= 0.9999 and related:
+            out.add("block", f"'{x}' is effectively the outcome", f"'{x}' moves in lock-step with '{y}' (correlation "
+                    f"{r:.5f}) and the names overlap, so it is almost certainly derived from it (e.g. the same return "
+                    "before/after a fee or risk-free adjustment). Using it would leak the answer into the model. Remove it.")
+        elif abs(r) >= 0.9999:
+            out.add("warn", f"'{x}' is almost a copy of the outcome",
+                    f"Correlation with '{y}' is {r:.5f}. That is expected for a tracker against its own index, but if "
+                    f"'{x}' is calculated from '{y}', the model will look far better than it really is.")
+        elif related and abs(r) >= 0.9:
+            out.add("warn", f"'{x}' may be derived from the outcome",
+                    f"The names overlap and the correlation is {r:.3f}. If one is calculated from the other, the fit "
+                    "will be overstated.")
 
     # dates
     dates = None

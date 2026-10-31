@@ -9,13 +9,15 @@ quantitative conclusions are supported by the data. **It does not make investmen
 
 ## Workflow
 
+Five steps. You can move between them freely, and results refresh automatically when the setup changes.
+
 | Step | What happens |
 |---|---|
-| 1. Data & Suitability | Upload a file or load a demo, review column types and missing values, label units, create dummy variables or excess returns, choose Y / X / date, and get a suitability assessment |
-| 2. Regression Lab | OLS estimates, standard errors, t, p, confidence intervals, F-test, R², ANOVA, and a plain-English reading |
-| 3. Diagnostics | Breusch–Pagan, Durbin–Watson, Breusch–Godfrey, ARCH LM, Jarque–Bera, RESET, VIF and correlation, Cook's distance and studentised residuals, ADF, plus residual / Q–Q / ACF plots |
-| 4. Compare & Repair | Suggested remedies (HC3, HAC/Newey–West, revising a redundant variable, sensitivity excluding flagged rows), a side-by-side A vs B view, nested F / robust Wald tests with guardrails, AIC/BIC, out-of-sample RMSE |
-| 5. Insights & Export | A narrative that separates measured facts, warnings and judgment; a scenario tool with extrapolation warnings; an HTML report (print to PDF), an Excel workbook and an audit trail |
+| 1. Data & Setup | Upload any ordinary Excel/CSV file (no template) or a demo. ELK finds the sheet, header row and table, skips titles and notes, turns sideways tables (periods across columns) the right way round, and shows the original next to what it read. If the layout is ambiguous, it asks. You choose Y and X and confirm the pre-filled units. An optional box records your investment question. Readiness checks run automatically, then you click **Run analysis**. Advanced import and advanced settings (sheet/header/rows/orientation, IDs, 0/1 categories, excess returns, transformations, filling gaps) are collapsed by default. |
+| 2. Regression Lab | Key takeaways (Finding · Why it matters · Next steps), a driver-by-driver table in plain units, and charts. Full coefficients and ANOVA are under "See statistical details". |
+| 3. Diagnostics | Each check is a plain question ("Do a few observations drive the results?") with a finding, why it matters, and what to do. Test statistics, residual/Q–Q/ACF plots, VIF and ADF are under the details. |
+| 4. Compare & Adjust | One-click alternative models (HC3, HAC, dropping an overlapping driver, excluding unusual rows) or your own Model B, with a plain bottom line and the full A-vs-B statistics on demand |
+| 5. Insights & Export | Summary takeaways, a what-if tool with extrapolation warnings, analyst notes, and an HTML report (print to PDF), an Excel workbook and an audit trail |
 
 ## Demo data
 
@@ -44,7 +46,7 @@ browser at `http://localhost:8501`. That address only exists on your own machine
 
 ## Correctness
 
-`pytest tests/` checks OLS against the NIST StRD *Longley* certified values. It also checks HC3, Durbin–Watson,
+`pytest tests/` checks the importer on twelve workbook/CSV layouts (exact values preserved), and checks OLS against the NIST StRD *Longley* certified values. It also checks HC3, Durbin–Watson,
 Breusch–Pagan, VIF and the nested F-test against independent matrix-algebra calculations, and tests the guardrails
 (binary outcomes, perfect collinearity, the dummy trap, too few rows, mismatched samples, chronological holdout).
 
@@ -58,7 +60,7 @@ authentication and access with your employer.
 
 ```
 app.py              Streamlit entry point and navigation
-core/               statistics, data handling and reporting (no UI code)
+core/               importer, statistics, findings wording and reporting (no UI code)
 ui/                 one module per workflow step
 data/snapshot/      fallback copy of public data (auto-refreshed)
 scripts/            snapshot refresh script

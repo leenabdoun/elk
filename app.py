@@ -16,24 +16,15 @@ PAGES = [page_data.render, page_regression.render, page_diagnostics.render, page
 
 
 def unlocked(i: int) -> tuple[bool, str]:
-    if i == 0:
-        return True, ""
-    if ss.data is None:
-        return False, "Load data first"
-    if ss.suit is None or ss.suit.blocked or not ss.spec.get("xs"):
-        return False, "Choose variables and pass the suitability check"
-    if i >= 2 and ss.fitA is None:
-        return False, "Run the regression first"
     return True, ""
 
 
 def done(i: int) -> bool:
-    return [ss.suit is not None and not ss.suit.blocked, ss.fitA is not None, ss.fitA is not None and ss.step > 2,
+    return [bool(ss.get("analysis_ran")) and ss.fitA is not None, ss.fitA is not None, ss.fitA is not None and ss.step > 2,
             ss.fitB is not None, False][i]
 
 
-if ss.step >= 1:
-    page_regression.ensure_model_a()
+page_regression.ensure_model_a()
 
 with st.sidebar:
     brand()
@@ -60,6 +51,4 @@ with st.sidebar:
                     "decisions. Numbers come from statistical code (statsmodels); interpretations use transparent rules.\n\n"
                     "**Public demo:** do not upload confidential data.")
 
-if not unlocked(ss.step)[0]:
-    ss.step = 0
 PAGES[ss.step]()

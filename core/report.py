@@ -138,6 +138,22 @@ def html_report(ctx: dict) -> str:
     parts.append("<div class='banner' style='background:#F4F5F7;border-color:#DADDE1'>This report describes statistical "
                  "associations in the data supplied. It is not investment advice and does not replace analyst judgment.</div>")
 
+    # 0 key takeaways
+    if ctx.get("question"):
+        parts.append(f"<p><b>Investment question:</b> {e(ctx['question'])}</p>")
+    if ctx.get("takeaways"):
+        parts.append("<h2>Key takeaways</h2>")
+        for f in ctx["takeaways"]:
+            col = {"good": "var(--ok)", "caution": "var(--acc)", "problem": "var(--bad)"}.get(f.tone, "#8A939B")
+            body = e(f.finding)
+            if f.points:
+                body += "<ul>" + "".join(f"<li>{e(p.replace('**', ''))}</li>" for p in f.points) + "</ul>"
+            nxt = ("<div><span class='tag'>Next steps</span><ul>" + "".join(f"<li>{e(n)}</li>" for n in f.next)
+                   + "</ul></div>") if f.next else ""
+            parts.append(f"<div class='item' style='border-color:{col}'><b>{e(f.title)}</b><div>{body}</div>"
+                         f"<div><span class='tag'>Why it matters</span>{e(f.why)}</div>{nxt}"
+                         + (f"<div class='sub'>{e(f.evidence)}</div>" if f.evidence else "") + "</div>")
+
     # 1 data & provenance
     parts.append("<h2>1. Data and provenance</h2><div class='kv'>")
     for k, v in ctx["provenance"]:
@@ -263,6 +279,10 @@ def excel_report(ctx: dict) -> bytes:
             c = ctx["comparison"]["result"]
             c["metrics"].to_excel(xw, sheet_name="Comparison", index=False)
             c["coef_table"].to_excel(xw, sheet_name="Coef comparison")
+        if ctx.get("takeaways"):
+            pd.DataFrame([{"takeaway": f.title, "finding": f.finding + (" " + " ".join(f.points) if f.points else ""),
+                           "why it matters": f.why, "next steps": " | ".join(f.next), "evidence": f.evidence}
+                          for f in ctx["takeaways"]]).to_excel(xw, sheet_name="Key takeaways", index=False)
         rows = []
         for sec in ctx["narrative"]:
             for kind, text in sec["items"]:

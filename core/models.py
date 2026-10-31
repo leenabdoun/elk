@@ -110,8 +110,8 @@ def compare(a: FitResult, b: FitResult, alpha: float) -> dict:
         out["warnings"].append("The models explain different outcomes, so R², AIC and BIC are not comparable.")
     if not out["same_sample"]:
         out["warnings"].append(
-            f"The models use different observations (A: {a.stats['n']}, B: {b.stats['n']}). AIC, BIC and F-tests "
-            "are only valid on identical samples; differences may reflect the sample, not the specification.")
+            f"Model B uses different observations ({b.stats['n']} vs {a.stats['n']}), so fit scores such as AIC and BIC "
+            "can't be compared directly — compare the effects and conclusions instead.")
     rows = []
     for key, lab, better in [("adj_r2", "Adjusted R²", "higher"), ("aic", "AIC", "lower"), ("bic", "BIC", "lower"),
                              ("rmse", "Residual std. error", "lower"), ("r2", "R²", "higher"), ("n", "Observations", None),

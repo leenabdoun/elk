@@ -8,10 +8,11 @@ import pandas as pd
 import streamlit as st
 
 from core.insights import build_narrative, fmt, in_unit
+from core.findings import comparison_takeaway, takeaways
 from core.models import COV_LABELS, compare, scenario, summarize_change
 from core.report import excel_report, html_report
 from ui.analysis import diag_rows, get_diag, get_influence, get_vif
-from ui.common import intercept_label, log, nav_buttons, need_model, page_header, ss
+from ui.common import esc, finding_card, intercept_label, log, nav_buttons, need_model, page_header, ss
 
 KIND = {"fact": ("Measured", "#4F7A5B"), "warning": ("Warning", "#B07D3E"), "judgment": ("Judgment", "#8A939B")}
 
@@ -22,7 +23,7 @@ def _ctx():
             "is_ts": sp["is_ts"], "ppy": sp.get("ppy")}
 
 
-def report_context(fit, secs):
+def report_context(fit, secs, tk=None):
     sp = ss.spec
     d = ss.data
     prov = list(d["provenance"]) + [("Transformation", t) for t in d.get("transforms", [])]
@@ -54,12 +55,12 @@ def report_context(fit, secs):
     return {"title": d["name"], "provenance": prov, "spec": spec, "suit": ss.suit, "fit": fit, "diag": diag_rows(fit),
             "vif": get_vif(fit), "flagged": flagged, "comparison": cmp_, "narrative": secs, "notes": ss.notes,
             "log": ss.log, "dates": ss.suit.dates, "alpha": sp["alpha"], "synthetic": d.get("synthetic"),
-            "intercept_label": intercept_label(), "labels": ss.suit.labels}
+            "intercept_label": intercept_label(), "labels": ss.suit.labels, "takeaways": tk or [],
+            "question": sp.get("question", "")}
 
 
 def render():
-    page_header("Insights & Export", "A structured reading of the results that separates what was measured, what the "
-                                     "diagnostics warn about, and what remains analyst judgment.")
+    page_header("Insights & Export", "The takeaways, a what-if scenario tool, your own notes, and an exportable report.")
     if not need_model():
         return
     fit = ss.fitB if (ss.report_model == "B" and ss.fitB is not None) else ss.fitA
@@ -68,15 +69,27 @@ def render():
     vif = get_vif(fit)
     _, flagged = get_influence(fit)
     secs = build_narrative(fit, d, vif, flagged, ss.suit, _ctx())
-    st.caption(f"Describing **{'Model B' if fit is ss.fitB else 'Model A'}**: {fit.spec.describe()} · "
-               f"{COV_LABELS[fit.spec.cov_type]}. Change this at the bottom of Compare & Repair.")
-    st.markdown(" ".join(f"<span class='elk-chip' style='color:{c};border-color:{c}'>{n}</span>" for n, c in KIND.values())
-                + "<span style='opacity:.7;font-size:.85rem'> Measured = computed from the data · Warning = a diagnostic "
-                  "concern · Judgment = interpretation that needs the analyst</span>", unsafe_allow_html=True)
-    st.write("")
-    letters = "abcde"
-    for i, sec in enumerate(secs):
-        with st.container(border=True):
+    st.caption(f"Describing **{'Model B' if fit is ss.fitB else 'Model A'}** ({COV_LABELS[fit.spec.cov_type].split(' (')[0]} "
+               "standard errors). Choose which model to report at the bottom of Compare & Adjust.")
+    if sp.get("question"):
+        st.markdown(f":material/help_outline: **Your question:** {sp['question']}")
+    tk = takeaways(fit, d, vif, flagged, ss.suit, sp, ss.units, ss.descriptions)
+    if ss.fitB is not None:
+        bl = comparison_takeaway(ss.fitA, ss.fitB, sp["alpha"], ss.descriptions)
+        bl.title = "Robustness: " + bl.title[:1].lower() + bl.title[1:]
+        tk.append(bl)
+    st.markdown("##### Summary for your investment discussion")
+    cols = st.columns(2)
+    for i, f in enumerate(tk):
+        with cols[i % 2]:
+            finding_card(f)
+    with st.expander("Full structured interpretation — measured facts, warnings and judgment, line by line",
+                     icon=":material/list_alt:"):
+        st.markdown(" ".join(f"<span class='elk-chip' style='color:{c};border-color:{c}'>{n}</span>" for n, c in KIND.values())
+                    + "<span style='opacity:.7;font-size:.85rem'> Measured = computed from the data · Warning = a "
+                      "diagnostic concern · Judgment = interpretation that needs the analyst</span>", unsafe_allow_html=True)
+        letters = "abcde"
+        for i, sec in enumerate(secs):
             st.markdown(f"**({letters[i]}) {sec['title']}**")
             for kind, text in sec["items"]:
                 name, color = KIND[kind]
@@ -84,7 +97,7 @@ def render():
                             unsafe_allow_html=True)
 
     # scenario ------------------------------------------------------------------
-    st.markdown("##### Scenario: what does the model imply for chosen inputs?")
+    st.markdown("##### What-if: what does the model imply for a specific case?")
     with st.container(border=True):
         st.caption("Plug in values for each explanatory variable. This applies the estimated relationship — it is **not a "
                    "forecast** unless the model has been validated out of sample. Defaults are sample means.")
@@ -104,10 +117,10 @@ def render():
         r = scenario(fit, vals, sp["alpha"])
         uy = ss.units.get(sp["y"], "unitless / other")
         c1, c2, c3 = st.columns(3)
-        c1.metric(f"Predicted {sp['y']}", in_unit(r["mean"], uy))
-        c2.metric(f"{1 - sp['alpha']:.0%} CI for the average", f"{in_unit(r['ci'][0], uy)} to {in_unit(r['ci'][1], uy)}",
+        c1.metric(f"Predicted {sp['y']}", esc(in_unit(r["mean"], uy)))
+        c2.metric(f"{1 - sp['alpha']:.0%} range for the average case", esc(f"{in_unit(r['ci'][0], uy)} to {in_unit(r['ci'][1], uy)}"),
                   help="Uncertainty about the average outcome for these inputs.")
-        c3.metric(f"{1 - sp['alpha']:.0%} prediction interval", f"{in_unit(r['pi'][0], uy)} to {in_unit(r['pi'][1], uy)}",
+        c3.metric(f"{1 - sp['alpha']:.0%} range for a single new case", esc(f"{in_unit(r['pi'][0], uy)} to {in_unit(r['pi'][1], uy)}"),
                   help="Range for a single new observation — much wider, because it includes residual noise.")
         if r["outside"]:
             st.warning(f"**Extrapolation:** {', '.join(r['outside'])} outside the range observed in the sample. The model has "
@@ -123,7 +136,7 @@ def render():
                             placeholder="e.g. Sample covers a single rate cycle; results should be refreshed after …")
 
     st.markdown("##### Export")
-    ctx = report_context(fit, secs)
+    ctx = report_context(fit, secs, tk)
     slug = re.sub(r"[^A-Za-z0-9]+", "_", ss.data["name"]).strip("_")[:40]
     c1, c2, c3 = st.columns(3)
     try:

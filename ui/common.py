@@ -17,7 +17,7 @@ LOGO_SVG = (ROOT / "assets" / "elk_logo.svg").read_text()
 POINT = "#7D8B99"
 LINE = "#4A5A6A"
 ACCENT = "#B07D3E"
-STEPS = ["Data & Suitability", "Regression Lab", "Diagnostics", "Compare & Repair", "Insights & Export"]
+STEPS = ["Data & Setup", "Regression Lab", "Diagnostics", "Compare & Adjust", "Insights & Export"]
 STEP_ICONS = [":material/table_chart:", ":material/functions:", ":material/troubleshoot:", ":material/compare_arrows:",
               ":material/description:"]
 
@@ -26,7 +26,8 @@ ss = st.session_state
 
 def init_state():
     defaults = {"step": 0, "data": None, "spec": {}, "suit": None, "fitA": None, "fitB": None, "b_cfg": None,
-                "log": [], "notes": "", "excess_cols": set(), "units": {}, "report_model": "A", "oos": None}
+                "log": [], "notes": "", "excess_cols": set(), "units": {}, "report_model": "A", "oos": None,
+                "descriptions": {}, "units_confirmed": set(), "analysis_ran": False, "spec_ready": False}
     for k, v in defaults.items():
         if k not in ss:
             ss[k] = v
@@ -88,7 +89,7 @@ LEVEL_WORD = {"ok": "No issue", "warn": "Flagged", "na": "Not available", "info"
 
 def explain(key: str, expanded=False):
     e = EXPLAIN[key]
-    with st.expander("What does this mean?", expanded=expanded, icon=":material/help:"):
+    with st.popover("What does this mean?", icon=":material/help:"):
         st.markdown(f"**What it checks.** {e['what']}  \n**Null hypothesis.** {e['null']}  \n"
                     f"**How to read it.** {e['read']}  \n**Limits.** {e['limits']}")
 
@@ -112,12 +113,42 @@ def nav_buttons(back: int | None, nxt: int | None, next_label: str = "Continue",
 
 def need_model() -> bool:
     if ss.fitA is None:
-        st.info("Run a regression first: choose your variables in **Data & Suitability**, then open the **Regression Lab**.",
-                icon=":material/info:")
-        if st.button("Go to Data & Suitability", type="primary"):
+        if ss.data is None:
+            msg = "Start by loading data in **Data & Setup**."
+        elif not ss.get("analysis_ran"):
+            msg = "Choose what to explain in **Data & Setup**, then click **Run analysis**."
+        else:
+            msg = "The setup has changed and isn't ready to run — check the items flagged in **Data & Setup**."
+        st.info(msg, icon=":material/info:")
+        if st.button("Go to Data & Setup", type="primary"):
             go_to(0)
         return False
     return True
+
+
+TONE = {"good": ("#4F7A5B", ":material/check_circle:"), "caution": ("#B07D3E", ":material/warning:"),
+        "problem": ("#B5473A", ":material/error:"), "neutral": ("#6F7880", ":material/insights:")}
+
+
+def finding_card(f, expanded_next=True):
+    """Render a Finding: key finding · why it matters · next steps · evidence."""
+    color, icon = TONE.get(f.tone, TONE["neutral"])
+    with st.container(border=True):
+        st.markdown(f"{icon} **{esc(f.title)}**")
+        st.markdown(esc(f.finding) + ("\n" + "\n".join(f"- {esc(p)}" for p in f.points) if f.points else ""))
+        if f.why:
+            st.markdown(f"<div style='margin:.2rem 0 .3rem'><span class='elk-kind' style='color:{color}'>Why it matters"
+                        f"</span>{esc(f.why)}</div>", unsafe_allow_html=True)
+        if f.next:
+            st.markdown("<span class='elk-kind'>Next steps</span>", unsafe_allow_html=True)
+            st.markdown("\n".join(f"- {esc(n)}" for n in f.next))
+        if f.evidence:
+            st.caption(esc(f.evidence))
+
+
+def esc(text: str) -> str:
+    """Stop Streamlit markdown reading '$…$' (dollar amounts) as maths."""
+    return str(text).replace("$", "\\$")
 
 
 def intercept_label() -> str:

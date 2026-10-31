@@ -47,6 +47,9 @@ FACTOR_DESCRIPTIONS = {
     "Mom": "Momentum: prior 12-month winners minus losers (skipping the latest month)",
     "RF": "Risk-free rate: 1-month US Treasury bill return for the period",
 }
+FACTOR_SHORT = {"Mkt-RF": "market excess return", "SMB": "small-cap factor", "HML": "value factor",
+                "RMW": "profitability factor", "CMA": "conservative-investment factor", "Mom": "momentum factor",
+                "RF": "risk-free rate"}
 DEFAULT_TICKERS = ["SPY", "IWM", "IWD", "IWF", "QUAL", "XLK"]
 TICKER_NOTES = {
     "SPY": "S&P 500 — broad US large-cap market",
