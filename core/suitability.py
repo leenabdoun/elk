@@ -212,9 +212,13 @@ def assess(df: pd.DataFrame, y: str, xs: list[str], date_col: str | None = None,
             r1 = complete[y].autocorr(1)
             out.metrics["y_lag1_autocorr"] = r1
             if r1 is not None and np.isfinite(r1) and r1 > 0.5:
-                out.add("warn", "Outcome is highly autocorrelated",
-                        f"Lag-1 autocorrelation of '{y}' is {r1:.2f}. This can indicate price levels rather than returns, "
-                        "or return smoothing (common in appraisal-based NAVs and illiquid funds).")
+                out.add("warn", "The outcome changes slowly from one period to the next",
+                        f"Each value of '{y}' is very close to the previous one (similarity with the previous period: "
+                        f"{r1:.2f} on a scale where 1 means identical). That is normal for levels such as interest rates, "
+                        "prices or index values, but comparing two slowly drifting series can make them look related just "
+                        "because both trend over the same years. To test the relationship more strictly, use period-to-period "
+                        "changes (Advanced settings → Transform → 'Change from previous row'). If this is a fund's return "
+                        "series, such high values can instead signal smoothed or appraisal-based pricing.")
     else:
         out.add("info", "Cross-sectional data",
                 "No date column selected, so row order is treated as arbitrary. Durbin–Watson, Breusch–Godfrey, ADF and ARCH "
