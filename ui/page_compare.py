@@ -15,6 +15,7 @@ DRAFT = "[Draft — edit to your own reasoning] "
 
 
 def _preset(rid, fit, remedy):
+    ss.b_autorun = True  # estimate straight away; the form below stays editable
     ss.b_xs = list(fit.spec.xs)
     ss.b_excl = False
     ss.b_cov = "nonrobust"
@@ -66,9 +67,12 @@ def render():
             st.markdown(f"**{r['title']}**")
             st.caption(f"Why: {r['why']}")
             st.caption(f"Effect: {r['effect']}")
-            st.button("Set up as Model B", key=f"rem_{r['id']}", on_click=_preset, args=(r["id"], A, r), width="stretch")
+            st.button("Run as Model B", key=f"rem_{r['id']}", on_click=_preset, args=(r["id"], A, r), width="stretch",
+                      icon=":material/play_arrow:")
 
     st.markdown("##### Model B")
+    st.caption("Use a suggestion above, or set your own combination here (for example HC3 errors *and* a revised variable "
+               "list), then click Estimate.")
     ss.setdefault("b_xs", list(A.spec.xs))
     ss.setdefault("b_cov", "nonrobust")
     ss.setdefault("b_excl", False)
@@ -99,6 +103,7 @@ def render():
             st.caption(":material/edit: A draft justification was filled in from the diagnostics. Edit it to reflect your "
                        "own reasoning — it is recorded in the report and audit trail.")
         clicked = st.button("Estimate Model B", type="primary", icon=":material/play_arrow:", disabled=not xs)
+        clicked = bool(ss.pop("b_autorun", False)) or clicked
         if not xs:
             st.caption("Select at least one explanatory variable.")
         if clicked and changes_spec and not just.strip():

@@ -246,6 +246,14 @@ def summarize_change(a: FitResult, b: FitResult, alpha: float) -> dict:
         top = se.abs().sort_values(ascending=False).head(3)
         lines.append("**Standard errors: changed.** Largest moves: " + ", ".join(
             f"{'intercept' if t == 'const' else t} {se[t]:+.0f}%" for t in top.index) + ".")
+        if b.spec.cov_type in ("HC1", "HC3"):
+            lines.append("**Diagnostics: unchanged — as expected.** HC errors do not remove heteroskedasticity, so "
+                         "Breusch–Pagan still flags it. They make the standard errors and p-values valid *despite* it; "
+                         "the question HC answers is whether your conclusions survive.")
+        elif b.spec.cov_type == "HAC":
+            lines.append("**Diagnostics: unchanged — as expected.** HAC errors do not remove autocorrelation or "
+                         "heteroskedasticity, so the tests still flag them. HAC makes the standard errors and p-values "
+                         "valid *despite* them.")
     else:
         bc = b.coef.loc[common, "estimate"]
         ac = a.coef.loc[common, "estimate"]
