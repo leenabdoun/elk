@@ -58,6 +58,11 @@ def render():
     _, flagged = get_influence(A)
 
     rem = suggest_remedies(d, vif, flagged, sp["is_ts"])
+    if sp["is_ts"] and (ss.suit.metrics.get("y_lag1_autocorr") or 0) > 0.9 and d.get("bg", {}).get("level") == "warn":
+        st.warning("**Your outcome looks like a slowly drifting level** (e.g. a rate or price). Two unrelated trending series "
+                   "often look strongly linked. The checks below adjust confidence but **cannot remove a trend-driven link** — "
+                   "the real test is to re-run on period-to-period changes (Data & Setup → Advanced settings → Transform → "
+                   "'Change from previous row' for the outcome and each driver).", icon=":material/trending_up:")
     st.markdown("##### Suggested checks, based on what Diagnostics found")
     st.caption("Each runs an alternative version (Model B) next to your original (Model A). Your data and Model A never change.")
     if not rem:

@@ -227,7 +227,13 @@ def takeaways(fit, diag, vif, flagged, suit, spec, units, desc) -> list[Finding]
     if diag.get("bp", {}).get("level") == "warn" and st["cov_type"] == "nonrobust":
         issues.append("the size of the errors isn't consistent across observations")
         nxt.append("Run the HC3 robust-error check (Compare & Adjust, one click) to see whether conclusions survive.")
-    if (diag.get("bg", {}).get("level") == "warn" or diag.get("arch", {}).get("level") == "warn") and st["cov_type"] != "HAC":
+    trending = spec.get("is_ts") and (suit.metrics.get("y_lag1_autocorr") or 0) > 0.9
+    if trending and diag.get("bg", {}).get("level") == "warn":
+        issues.insert(0, f"{Y} and its drivers look like slowly drifting levels, so the link may partly be a shared trend "
+                         "rather than a real relationship")
+        nxt.insert(0, "Re-run on period-to-period changes (Advanced settings → Transform → 'Change from previous row' for Y "
+                      "and each driver). Robust (HAC) errors alone do not fix a trend-driven result.")
+    elif (diag.get("bg", {}).get("level") == "warn" or diag.get("arch", {}).get("level") == "warn") and st["cov_type"] != "HAC":
         issues.append("errors carry over from one period to the next")
         nxt.append("Run the HAC (Newey–West) check in Compare & Adjust.")
     if vif is not None and len(vif) and (vif["VIF"] > 10).any():
@@ -279,12 +285,17 @@ def check_cards(fit, diag, vif, flagged, spec, units, desc) -> list[dict]:
                                                               if not spec.get("is_ts") else "")),
             ["Compare with heteroskedasticity-robust (HC3) errors — one click in Compare & Adjust."], d["bp"]["level"], d["bp"])
     if "bg" in d:
+        trend_note = (" Because the outcome changes very slowly (it looks like a level, e.g. a rate or price), the bigger "
+                      "risk is a shared trend creating a link that isn't real." if (spec.get("y_ac") or 0) > 0.9 else "")
         add("bg", "Do errors carry over from one period to the next?",
             "No meaningful carry-over detected.",
             f"Yes — this period's error tends to predict the next ({p_eq(d['bg']['p'])}, {d['bg'].get('lags')} lags).",
             "Patterns over time are left in the errors, so confidence levels are likely overstated; for funds this can "
-            "also indicate smoothed or stale pricing.", ["Use HAC (Newey–West) errors in Compare & Adjust.",
-                                                          "Consider whether a driver that changes over time is missing."],
+            "also indicate smoothed or stale pricing." + trend_note,
+            (["Re-run on period-to-period changes (Transform → 'Change from previous row') — this is the real test.",
+              "HAC errors adjust confidence but do not remove a trend-driven link."] if trend_note else
+             ["Use HAC (Newey–West) errors in Compare & Adjust.",
+              "Consider whether a driver that changes over time is missing."]),
             d["bg"]["level"], d["bg"])
     if "arch" in d:
         add("arch", "Do calm and turbulent periods cluster?",

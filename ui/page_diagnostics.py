@@ -108,7 +108,7 @@ def render():
     d = get_diag(fit)
     vif = get_vif(fit)
     full, flagged = get_influence(fit)
-    cards = check_cards(fit, d, vif, flagged, sp, ss.units, ss.descriptions)
+    cards = check_cards(fit, d, vif, flagged, dict(sp, y_ac=ss.suit.metrics.get("y_lag1_autocorr")), ss.units, ss.descriptions)
     flagged_cards = [c for c in cards if c["level"] == "warn"]
     if flagged_cards:
         st.warning(f"**{len(flagged_cards)} of {len(cards)} checks {'raises' if len(flagged_cards) == 1 else 'raise'} a flag.** The findings may still be useful, but "
