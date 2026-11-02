@@ -194,15 +194,15 @@ def render():
             rows = []
             for k in ["bp", "bg", "arch", "jb", "reset"]:
                 if k in dA and k in dB:
-                    rows.append({"test": dA[k]["name"], "p (A)": dA[k]["p"], "p (B)": dB[k]["p"]})
+                    rows.append({"check": dA[k]["name"], "measure": "p-value", "Model A": dA[k]["p"], "Model B": dB[k]["p"]})
             vb = get_vif(B)
             if len(vif) or len(vb):
-                rows.append({"test": "Max VIF (value)", "p (A)": vif["VIF"].max() if len(vif) else np.nan,
-                             "p (B)": vb["VIF"].max() if len(vb) else np.nan})
+                rows.append({"check": "Overlap between drivers (max VIF)", "measure": "VIF value (>10 = high)", "Model A": vif["VIF"].max() if len(vif) else np.nan,
+                             "Model B": vb["VIF"].max() if len(vb) else np.nan})
             if not chg["inference_only"]:
-                st.markdown("**Diagnostics, A vs B** (p-values; VIF is a value)")
+                st.markdown("**Diagnostics, A vs B** — for p-values, below the significance level means the check flags a problem")
                 st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch",
-                             column_config={"p (A)": nf(format="%.4f"), "p (B)": nf(format="%.4f")})
+                             column_config={"Model A": nf(format="%.4f"), "Model B": nf(format="%.4f")})
 
     st.markdown("##### Out-of-sample check")
     with st.container(border=True):
