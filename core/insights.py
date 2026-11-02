@@ -222,16 +222,21 @@ def _cov_name(st):
 
 def suggest_remedies(diag: dict, vif, flagged, is_ts: bool) -> list[dict]:
     out = []
+    ts_issue = is_ts and any(diag.get(k, {}).get("level") == "warn" for k in ("bg", "arch", "dw"))
+    if ts_issue:
+        flagged_ts = [n for k, n in (("dw", "Durbin–Watson"), ("bg", "Breusch–Godfrey"), ("arch", "ARCH LM"),
+                                     ("bp", "Breusch–Pagan")) if diag.get(k, {}).get("level") == "warn"]
+        out.append({"id": "HAC", "title": "Recommended: re-check confidence allowing for patterns over time (HAC / Newey–West)",
+                    "why": f"Covers everything flagged here ({', '.join(flagged_ts)}): errors that carry over between "
+                           "periods, volatility that clusters, and uneven error sizes — one adjustment for all of them.",
+                    "effect": "only the confidence levels. Effects stay the same."})
     if diag.get("bp", {}).get("level") == "warn":
         out.append({"id": "HC3", "title": "Re-check confidence allowing for uneven errors (HC3)",
-                    "why": "Diagnostics found the model's errors are larger for some observations than others, which can "
-                           "overstate confidence.",
+                    "why": ("Covers only the uneven error sizes (Breusch–Pagan). For time-series data HAC above already "
+                            "covers this and more." if ts_issue else
+                            "Diagnostics found the model's errors are larger for some observations than others, which can "
+                            "overstate confidence."),
                     "effect": "only the confidence levels (standard errors, p-values). Effects stay the same."})
-    if is_ts and (diag.get("bg", {}).get("level") == "warn" or diag.get("arch", {}).get("level") == "warn"
-                  or diag.get("dw", {}).get("level") == "warn"):
-        out.append({"id": "HAC", "title": "Re-check confidence allowing for patterns over time (HAC / Newey–West)",
-                    "why": "Diagnostics found errors that carry over between periods or volatility that clusters.",
-                    "effect": "only the confidence levels. Effects stay the same."})
     if vif is not None and len(vif) and (vif["VIF"] > 10).any():
         hi = vif.sort_values("VIF", ascending=False)["variable"].tolist()
         out.append({"id": "DROP", "title": "Drop one of two overlapping drivers",
