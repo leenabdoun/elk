@@ -9,7 +9,7 @@ import statsmodels.api as sm
 from scipy import stats
 
 COV_LABELS = {
-    "nonrobust": "Classical (assumes constant variance, no autocorrelation)",
+    "nonrobust": "Standard — no adjustment",
     "HC1": "Heteroskedasticity-robust (HC1 / White)",
     "HC3": "Heteroskedasticity-robust (HC3, better in small samples)",
     "HAC": "HAC / Newey–West (heteroskedasticity + autocorrelation)",
