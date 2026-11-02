@@ -372,22 +372,33 @@ def comparison_takeaway(A, B, alpha, desc) -> Finding:
                        "corrected version.", ["Use Model B as the reported model.",
                                                "Avoid strong claims about the drivers that lost reliability."], tone="caution")
     if B.spec.exclude_rows:
-        big = []
-        for t in common:
-            ac, bc = A.coef.loc[t, "estimate"], B.coef.loc[t, "estimate"]
-            if ac != 0 and abs(bc - ac) / abs(ac) > 0.25:
-                big.append(nm(t, desc))
-        if not big and not lost:
+        def material(t):
+            ac, bc, se = A.coef.loc[t, "estimate"], B.coef.loc[t, "estimate"], A.coef.loc[t, "std_error"]
+            return ac != 0 and abs(bc - ac) / abs(ac) > 0.25 and abs(bc - ac) > se
+        big = [nm(t, desc) for t in common if material(t)]
+        lost_all = [t for t in B.coef.index if t in A.coef.index
+                    and A.coef.loc[t, "p_value"] < alpha <= B.coef.loc[t, "p_value"]]
+        lost_names = ["the intercept (alpha)" if t == "const" else nm(t, desc) for t in lost_all]
+        if not big and not lost_all:
             return Finding("Results don't depend on the unusual observations",
                            f"Without the {len(B.spec.exclude_rows)} flagged observations the main effects are similar.",
                            "The findings describe the typical case, not just a few outliers.",
                            ["Keep the full-sample model as the reference."], tone="good")
-        return Finding("A few observations matter a lot",
-                       "Without the flagged observations, these effects change by more than 25%: "
-                       + (", ".join(big) or "—") + (f". No longer reliable: {', '.join(nm(t, desc) for t in lost)}." if lost else "."),
-                       "Conclusions about these drivers rest partly on a handful of unusual cases.",
-                       ["Investigate the flagged rows (errors? distressed assets? one-off events?).",
-                        "Present both versions if the unusual cases are genuine."], tone="caution")
+        parts = []
+        if big:
+            parts.append("these effects change materially (by more than 25% and by more than their own uncertainty): "
+                         + ", ".join(big) + ".")
+        else:
+            parts.append("the effects themselves barely change.")
+        if lost_names:
+            parts.append("No longer statistically reliable: " + ", ".join(lost_names) + ".")
+        return Finding("Some conclusions depend on a few observations",
+                       f"Without the {len(B.spec.exclude_rows)} flagged observations, " + " ".join(parts),
+                       "Conclusions about " + (", ".join(lost_names + big)) + " rest partly on a handful of unusual cases; "
+                       "treat them as fragile. Effects not listed are robust.",
+                       ["Investigate the flagged rows (errors? crises? one-off events?).",
+                        "Keep the full-sample model as the main result and report this as a sensitivity check."],
+                       tone="caution")
     dropped = sorted(set(A.spec.xs) - set(B.spec.xs))
     added = sorted(set(B.spec.xs) - set(A.spec.xs))
     d_adj = B.stats["adj_r2"] - A.stats["adj_r2"]
