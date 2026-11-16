@@ -415,4 +415,4 @@ def comparison_takeaway(A, B, alpha, desc) -> Finding:
                    ("Effects that shifted: " + "; ".join(chg[:3]) + "." if chg else "Other effects barely changed."),
                    ("If fit is similar, the simpler model is usually easier to defend — but dropping a genuinely relevant "
                     "driver can distort the others, so the choice should follow investment logic, not statistics alone."),
-                   ["Check the out-of-sample comparison below.", "Choose which model goes in the report."], tone="neutral")
+                   ["Check the Forecast accuracy tab to see whether either model predicts better than a simple benchmark.", "Choose which model goes in the report."], tone="neutral")

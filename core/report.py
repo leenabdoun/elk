@@ -222,9 +222,23 @@ def html_report(ctx: dict) -> str:
                          f"{p_eq(t['p_value'])}. H₀: {e(t['null'])} {e(t['reading'])} <i>{e(t['caveat'])}</i></div>")
         if cmp_["result"].get("nested_note"):
             parts.append(f"<div class='item'>{e(cmp_['result']['nested_note'])}</div>")
-        if cmp_.get("oos") is not None:
-            parts.append(f"<h3>Out-of-sample check</h3><p>{e(cmp_['oos']['method'])}</p>" + _table(cmp_["oos"]["table"].set_index("model")))
-            parts.append("<p class='sub'>In-sample fit does not guarantee forecasting performance.</p>")
+    fc = ctx.get("forecast")
+    if fc and fc.get("ok"):
+        parts.append("<h3>Forecast accuracy (out of sample)</h3>" if cmp_ else "<h2>6. Forecast accuracy (out of sample)</h2>")
+        v = fc["verdict"]
+        parts.append(f"<div class='item'><b>{e(v.title)}</b><br>{e(v.finding)}</div>")
+        for pt in v.points:
+            parts.append(f"<div class='item'>{e(pt)}</div>")
+        parts.append(f"<div class='item judgment'><span class='tag'>why</span>{e(v.why)}</div>")
+        parts.append(f"<p>{e(fc['method'])}</p>")
+        cols = ["Model", "MAE", "RMSE", "MAE improvement (%)", "RMSE improvement (%)", "Out-of-sample R²",
+                "p-value vs benchmark", "Beats benchmark?"]
+        parts.append(_table(fc["table"][cols].set_index("Model"), pcols=("p-value vs benchmark",)))
+        for n in fc.get("notes", []):
+            parts.append(f"<div class='item warning'>{e(n)}</div>")
+        parts.append("<p class='sub'>Improvement = 1 − model error ÷ benchmark error (positive = better). Out-of-sample "
+                     "R² = 1 − model MSE ÷ benchmark MSE. p-values: Diebold–Mariano test of equal squared-error accuracy. "
+                     "Robust standard errors are not part of this comparison: they change p-values, not predictions.</p>")
 
     # 7 interpretation
     parts.append("<h2>7. Interpretation</h2>")
@@ -279,6 +293,10 @@ def excel_report(ctx: dict) -> bytes:
             c = ctx["comparison"]["result"]
             c["metrics"].to_excel(xw, sheet_name="Comparison", index=False)
             c["coef_table"].to_excel(xw, sheet_name="Coef comparison")
+        fc = ctx.get("forecast")
+        if fc and fc.get("ok"):
+            fc["table"].assign(**{"Verdict": fc["verdict"].title, "Method": fc["method"]}).to_excel(
+                xw, sheet_name="Forecast accuracy", index=False)
         if ctx.get("takeaways"):
             pd.DataFrame([{"takeaway": f.title, "finding": f.finding + (" " + " ".join(f.points) if f.points else ""),
                            "why it matters": f.why, "next steps": " | ".join(f.next), "evidence": f.evidence}

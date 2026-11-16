@@ -7,7 +7,8 @@ import streamlit as st
 
 from core.findings import comparison_takeaway
 from core.insights import fmt, fmt_p, p_eq, suggest_remedies
-from core.models import COV_LABELS, ModelSpec, compare, fit_ols, newey_west_lags, out_of_sample, summarize_change
+from core.models import COV_LABELS, ModelSpec, compare, fit_ols, newey_west_lags, summarize_change
+from ui.page_forecast import render_forecast
 from ui.analysis import get_diag, get_influence, get_vif
 from ui.common import finding_card, intercept_label, log, nav_buttons, need_model, page_header, ss
 
@@ -46,10 +47,22 @@ def _preset(rid, fit, remedy):
 
 
 def render():
-    page_header("Compare & Adjust", "Test whether your conclusions hold up: run an alternative version of the model "
-                                    "(Model B) and see what changes. Nothing is applied automatically.")
+    page_header("Compare & Adjust", "Test whether your conclusions hold up, and whether the model actually forecasts. "
+                                    "Nothing is applied automatically.")
     if not need_model():
         return
+    t_rob, t_fc = st.tabs([":material/balance: Robustness: does the conclusion hold?",
+                           ":material/query_stats: Forecast accuracy: does it predict?"])
+    with t_rob:
+        _robustness()
+    with t_fc:
+        render_forecast()
+    nav_buttons(2, 4, "Insights & export")
+
+
+def _robustness():
+    st.caption("Run an alternative version of the model (Model B) and see what changes. Robust standard errors (HC/HAC) "
+               "live here: they test how far the p-values can be trusted, not how well the model predicts.")
     A = ss.fitA
     sp = ss.spec
     alpha = sp["alpha"]
@@ -140,7 +153,6 @@ def render():
 
     B = ss.fitB
     if B is None:
-        nav_buttons(2, 4, "Insights & export")
         return
 
     if not A.frame.index.equals(B.frame.index) and set(A.spec.xs) - set(ss.suit.frame.columns) == set():
@@ -204,32 +216,8 @@ def render():
                 st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch",
                              column_config={"Model A": nf(format="%.4f"), "Model B": nf(format="%.4f")})
 
-    st.markdown("##### Out-of-sample check")
-    with st.container(border=True):
-        if sp["is_ts"]:
-            hold = st.slider("Holdout share (most recent observations)", 0.1, 0.4, 0.2, 0.05, key="oos_hold")
-        else:
-            hold = 0.2
-            st.caption("Cross-sectional data: 5-fold cross-validation with a fixed seed.")
-        if st.button("Run out-of-sample comparison", icon=":material/science:"):
-            same = A.frame.index.intersection(B.frame.index)
-            frame = ss.suit.frame.loc[ss.suit.frame.index.intersection(same)] if not B.spec.exclude_rows else A.frame.loc[same]
-            if set(B.spec.xs) - set(frame.columns):
-                frame = B.frame.loc[B.frame.index.intersection(same)]
-            ss.oos = out_of_sample(frame, [A.spec, B.spec], sp["is_ts"], hold)
-            log("Out-of-sample comparison", ss.oos["method"])
-        if ss.oos:
-            st.caption(ss.oos["method"])
-            st.dataframe(ss.oos["table"], hide_index=True, width="stretch",
-                         column_config={"RMSE": nf(format="%.5g"), "MAE": nf(format="%.5g")})
-            if A.spec.xs == B.spec.xs:
-                st.caption("Identical variables give identical predictions — robust errors do not change forecasts.")
-            st.caption("Lower error is better. In-sample fit does not guarantee forecasting performance; a single holdout is "
-                       "one draw of history.")
-
     st.markdown("##### Which model goes in the report?")
     ss.report_model = st.radio("Primary model for Insights & Export", ["A", "B"], horizontal=True,
                                format_func=lambda v: "Model A (original)" if v == "A" else "Model B (alternative)",
                                index=0 if ss.report_model == "A" else 1, label_visibility="collapsed")
     st.caption("Both models and the comparison are always included in the report; this chooses which one the narrative describes.")
-    nav_buttons(2, 4, "Insights & export")

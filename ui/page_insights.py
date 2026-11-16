@@ -50,10 +50,9 @@ def report_context(fit, secs, tk=None):
                           + (f" ({B.spec.hac_lags} lags)" if B.spec.cov_type == "HAC" else "")
                           + f" · n={B.stats['n']}" + (f" · {len(B.spec.exclude_rows)} rows excluded" if B.spec.exclude_rows else ""),
                 "justification": (ss.b_cfg or {}).get("justification", ""), "result": compare(A, B, sp["alpha"]),
-                "changes": summarize_change(A, B, sp["alpha"])["lines"],
-                "oos": ss.oos}
+                "changes": summarize_change(A, B, sp["alpha"])["lines"]}
     return {"title": d["name"], "provenance": prov, "spec": spec, "suit": ss.suit, "fit": fit, "diag": diag_rows(fit),
-            "vif": get_vif(fit), "flagged": flagged, "comparison": cmp_, "narrative": secs, "notes": ss.notes,
+            "vif": get_vif(fit), "flagged": flagged, "comparison": cmp_, "forecast": ss.oos, "narrative": secs, "notes": ss.notes,
             "log": ss.log, "dates": ss.suit.dates, "alpha": sp["alpha"], "synthetic": d.get("synthetic"),
             "intercept_label": intercept_label(), "labels": ss.suit.labels, "takeaways": tk or [],
             "question": sp.get("question", "")}
